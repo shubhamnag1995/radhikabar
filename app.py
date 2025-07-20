@@ -21,12 +21,9 @@ def increment_visitor():
 
 @app.route('/')
 def qr_page():
-    link = get_public_url()
-    qr_path = "static/qr_code.png"
-    if not os.path.exists(qr_path):
-        img = qrcode.make(link)
-        img.save(qr_path)
-
+    link = get_public_url()  # 🔹 This should return your live Render URL
+    img = qrcode.make(link)
+    img.save("static/qr_code.png")  # 🔹 Saved QR image
     VISITOR_FILE.touch(exist_ok=True)
     visitors = int(VISITOR_FILE.read_text() or "0")
     return render_template("qr_page.html",
@@ -34,6 +31,7 @@ def qr_page():
                            qr_image="qr_code.png",
                            link=link,
                            visitors=visitors)
+
 
 
 @app.route('/start')
