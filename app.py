@@ -10,19 +10,7 @@ VISITOR_FILE = Path("visitors.txt")
 lock = Lock()
 
 def get_public_url():
-    # For deployment you can set PUBLIC_URL env var,
-    # otherwise auto‑detect LAN IP for local test.
-    env = os.getenv("PUBLIC_URL")
-    if env:
-        return env.rstrip("/") + "/start"
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        local_ip = s.getsockname()[0]
-        s.close()
-        return f"http://{local_ip}:5000/start"
-    except:
-        return "http://127.0.0.1:5000/start"
+    return "https://radhikabar.onrender.com/start"  # <-- replace here
 
 def increment_visitor():
     with lock:
