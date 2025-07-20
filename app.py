@@ -1,60 +1,60 @@
-import os
-from flask import Flask, render_template, redirect, url_for, request, session
+from flask import Flask, render_template, send_file
 import qrcode
-from datetime import datetime
+import socket
+import os
+from pathlib import Path
+from threading import Lock
 
 app = Flask(__name__)
-app.secret_key = "any-secret-key"
+VISITOR_FILE = Path("visitors.txt")
+lock = Lock()
 
-VISITOR_FILE = "data/visitors.txt"
-
-# Ensure visitor file exists
-os.makedirs("data", exist_ok=True)
-if not os.path.exists(VISITOR_FILE):
-    with open(VISITOR_FILE, "w") as f:
-        f.write("0")
-
-# Helper: Get visitor count
-def get_visitor_count():
-    with open(VISITOR_FILE, "r") as f:
-        return int(f.read().strip())
-
-# Helper: Increment and save visitor count
-def increment_visitor_count():
-    count = get_visitor_count() + 1
-    with open(VISITOR_FILE, "w") as f:
-        f.write(str(count))
-    return count
-
-# Get full public Render URL here (update with your actual domain)
 def get_public_url():
-    return "https://radhikabar.onrender.com/start"  # CHANGE THIS after deployment
+    # For deployment you can set PUBLIC_URL env var,
+    # otherwise auto‑detect LAN IP for local test.
+    env = os.getenv("PUBLIC_URL")
+    if env:
+        return env.rstrip("/") + "/start"
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+        return f"http://{local_ip}:5000/start"
+    except:
+        return "http://127.0.0.1:5000/start"
+
+def increment_visitor():
+    with lock:
+        VISITOR_FILE.touch(exist_ok=True)
+        count = int(VISITOR_FILE.read_text() or "0") + 1
+        VISITOR_FILE.write_text(str(count))
+        return count
 
 @app.route('/')
-def home():
-    # Generate QR code once
-    img = qrcode.make(get_public_url())
-    img.save("static/qr_code.png")
+def qr_page():
+    link = get_public_url()
+    qr_path = "static/qr_code.png"
+    if not os.path.exists(qr_path):
+        img = qrcode.make(link)
+        img.save(qr_path)
 
-    visitors = get_visitor_count()
-    return render_template("qr_page.html", visitors=visitors)
+    VISITOR_FILE.touch(exist_ok=True)
+    visitors = int(VISITOR_FILE.read_text() or "0")
+    return render_template("qr_page.html",
+                           shop_name="Radhika Bar & Restro Tumasr Dewhadi",
+                           qr_image="qr_code.png",
+                           link=link,
+                           visitors=visitors)
+
 
 @app.route('/start')
-def start_game():
-    user_agent = request.headers.get('User-Agent')
-    if "Mobile" in user_agent and "Tablet" not in user_agent and "iPad" not in user_agent:
-        if session.get("played") == "yes":
-            return redirect(url_for("already_played"))
-        else:
-            session["played"] = "yes"
-
-    increment_visitor_count()
-    return render_template("stopwatch.html")
-
-@app.route('/already-played')
-def already_played():
-    return "You have already played. Please scan the QR again to try."
+def stopwatch():
+    # increment on each actual game‐start visit
+    visitors = increment_visitor()
+    return render_template("stopwatch.html",
+                           shop_name="Radhika Bar and Restaurant",
+                           visitors=visitors)
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(debug=True, host="0.0.0.0")
