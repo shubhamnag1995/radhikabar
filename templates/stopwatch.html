@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Stopwatch Game - Radhika Bar and Restaurant</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+  <style>
+    body {
+      background-image: url("static/radhika.jpeg");
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+      color:#fff;
+      font-family: 'Segoe UI', sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+
+    #mainDiv {
+      background-color: hsla(180, 1%, 28%, 0.959);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+      border-radius: 20px;
+      max-width: 850px;
+      margin: auto;
+      padding: 5px;
+      position: relative; /* Added for absolute positioning of images */
+      padding-bottom: 100px; /* Added to make space for images at the bottom */
+      padding-left: 10px;
+      padding-right: 10px;
+    }
+
+    h1 {
+      font-size: 2.8rem;
+      margin-bottom: 20px;
+      color:#fff;
+    }
+
+    #timer {
+      font-size: 4.5rem;
+      font-weight: bold;
+      margin: 30px 0;
+      color: #fff;
+    }
+
+    button.btn {
+      font-size: 1.6rem;
+      padding: 15px 30px;
+      margin: 10px;
+      min-width: 160px;
+      border-radius: 12px;
+    }
+
+    .btn-start {
+      background-color: #28a745;
+      color: #fff;
+      border: none;
+    }
+
+    .btn-stop {
+      background-color: #dc3545;
+      color: #fff;
+      border: none;
+    }
+
+    .btn-secondary {
+      font-size: 1.4rem;
+      margin-top: 20px;
+    }
+
+    #currentDate {
+      font-size: 1.4rem;
+      margin-bottom: 15px;
+      color: #fff;
+    }
+
+    p {
+      font-size: 1.3rem;
+      color: #fff;
+    }
+
+    #backBtnWrapper {
+      margin-top: 20px;
+    }
+
+    /* New styles for circular images and captions */
+    .image-container {
+  position: absolute;
+  bottom: 20px;
+  width: 100%;
+  display: flex;
+  justify-content: space-between; /* Changed from space-around */
+  align-items: flex-end;
+}
+
+    .image-item {
+      text-align: center;
+    }
+
+    .circle-img {
+      width: 70px; /* Adjust size as needed */
+      height: 70px; /* Adjust size as needed */
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid #ec8c05; /* Optional: Add a border */
+    }
+
+    .image-caption {
+      color: #ffffff; /* Adjust caption color */
+      font-size: 0.9rem;
+      margin-top: 5px;
+    }
+
+    /* Mobile responsiveness */
+    @media (max-width: 767px) {
+      h1 {
+        font-size: 2rem;
+      }
+
+      #timer {
+        font-size: 3.2rem;
+      }
+
+      button.btn {
+        font-size: 1.3rem;
+        padding: 12px 20px;
+        min-width: 140px;
+      }
+
+      #backBtnWrapper {
+        display: none !important;
+      }
+
+      #mainDiv {
+        width: 100%;
+        padding: 50px;
+        padding-bottom: 80px; /* Adjust for mobile if needed */
+      }
+
+      .circle-img {
+        width: 100px;
+        height: 100px;
+      }
+
+      .image-caption {
+        font-size: 0.8rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="mainDiv" class="container">
+    <h1>Radhika Bar & Restaurant</h1>
+    <h2>⏱️ Stopwatch Game</h2>
+    <p id="currentDate"></p>
+    <div id="timer">00:00:00</div>
+
+    <button id="startBtn" class="btn btn-start">▶ Start</button>
+    <button id="stopBtn" class="btn btn-stop" disabled>■ Stop</button>
+
+    <p class="mt-4">Total Plays: <strong>{{ visitors }}</strong></p>
+
+    <div id="backBtnWrapper">
+      <a href="/" class="btn btn-secondary">🔙 Back to QR Page</a>
+    </div>
+
+    <div class="image-container">
+      <div class="image-item">
+        <img src="static/Rbiranware.jpeg" alt="Beer Mug" class="circle-img">
+        <div class="image-caption">Founder: Ramesh Biranware</div>
+      </div>
+      <div class="image-item">
+        <img src="static/Rbiranware2.jpeg" alt="Delicious Food" class="circle-img">
+        <div class="image-caption">Co-Founder: Rajat Biranware</div>
+      </div>
+    </div>
+    </div>
+
+  <audio id="winSound" src="{{ url_for('static', filename='win.mp3') }}"></audio>
+  <audio id="loseSound" src="{{ url_for('static', filename='lose.mp3') }}"></audio>
+
+  <script>
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const timerEl = document.getElementById("timer");
+    const winSound = document.getElementById("winSound");
+    const loseSound = document.getElementById("loseSound");
+    let startTime, timerInterval;
+
+   function showCurrentDate() {
+    const dateEl = document.getElementById("currentDate");
+    const today = new Date();
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    dateEl.textContent = "📅 Date: " + today.toLocaleDateString('en-IN', options);
+  }
+  showCurrentDate();
+
+  // Prevent replay by refresh ONLY for mobile devices
+  const isMobile = window.innerWidth <= 768;
+
+  if (isMobile && sessionStorage.getItem("played") === "yes") {
+    alert("You have already played. Please scan the QR code again to try.");
+    window.location.href = "/";
+  }
+
+    function updateTimer() {
+      const elapsed = Date.now() - startTime;
+      const seconds = Math.floor((elapsed / 1000) % 60);
+      const milliseconds = Math.floor((elapsed % 1000) / 10);
+      timerEl.textContent = `00:${seconds.toString().padStart(2, '0')}:${milliseconds.toString().padStart(2, '0')}`;
+    }
+
+    startBtn.addEventListener("click", () => {
+      startTime = Date.now();
+      timerInterval = setInterval(updateTimer, 10);
+      stopBtn.disabled = false;
+      startBtn.disabled = true;
+    });
+
+    stopBtn.addEventListener("click", () => {
+      clearInterval(timerInterval);
+      stopBtn.disabled = true;
+
+      const timeText = timerEl.textContent;
+      if (timeText === "00:10:00") {
+        winSound.play();
+        alert("🎉Congratulations You Win!");
+      } else {
+        loseSound.play();
+        alert("❌ One More Drink😄 Enjoy & Try Again");
+      }
+
+      sessionStorage.setItem("played", "yes");
+    });
+  </script>
+</body>
+</html>
